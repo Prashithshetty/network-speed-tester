@@ -64,3 +64,56 @@ class NetworkSpeedTester:
         finally:
             server_socket.close()
     
+    def _handle_tcp_client(self, client_socket: socket.socket) -> None:
+        try:
+            test_type = client_socket.recv(16).decode('utf-8').strip()
+            
+            if test_type == 'upload':
+                if self.verbose:
+                    print("Starting upload test (receiving data)...")
+                
+                total_received = 0
+                start_time = time.time()
+                
+                while True:
+                    data = client_socket.recv(self.buffer_size)
+                    if not data:
+                        break
+                    total_received += len(data)
+                
+                end_time = time.time()
+                duration = end_time - start_time
+                
+                if self.verbose:
+                    print(f"Received {total_received} bytes in {duration:.2f} seconds")
+                
+                response = f"STATS:{total_received}:{duration}"
+                client_socket.sendall(response.encode('utf-8'))
+                
+            elif test_type == 'download':
+                if self.verbose:
+                    print("Starting download test (sending data)...")
+                
+                test_data = self._generate_test_data(self.buffer_size)
+                remaining = self.data_size
+                
+                start_time = time.time()
+                
+                while remaining > 0 and not self.stop_event.is_set():
+                    chunk_size = min(remaining, self.buffer_size)
+                    client_socket.sendall(test_data[:chunk_size])
+                    remaining -= chunk_size
+                
+                end_time = time.time()
+                duration = end_time - start_time
+                
+                if self.verbose:
+                    print(f"Sent {self.data_size} bytes in {duration:.2f} seconds")
+                
+                response = f"STATS:{self.data_size}:{duration}"
+                client_socket.sendall(response.encode('utf-8'))
+                
+        except Exception as e:
+            print(f"Error handling client: {e}")
+        finally:
+            client_socket.close()
