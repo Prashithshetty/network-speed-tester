@@ -28,4 +28,15 @@ class NetworkSpeedTester:
         self.protocol = protocol.lower()
         self.verbose = verbose
         self.stop_event = threading.Event()
-        
+    
+    def _generate_test_data(self, size: int) -> bytes:
+        return bytes(random.getrandbits(8) for _ in range(size))
+    
+    def start_server(self) -> None:
+       
+        if self.protocol == 'tcp':
+            self._start_tcp_server()
+        else:
+            self._start_udp_server()
+
+    
