@@ -118,3 +118,65 @@ class NetworkSpeedTester:
         finally:
             client_socket.close()
 
+
+
+    def _start_udp_server(self) -> None:
+        """Start UDP server"""
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        server_socket.bind((self.host, self.port))
+        server_socket.settimeout(1.0)  
+        
+        print(f"UDP Server started on {self.host}:{self.port}")
+        
+        packet_times = {}
+        
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    data, addr = server_socket.recvfrom(self.buffer_size)
+                    
+                    if data.startswith(b'START:'):
+                        
+                        test_type = data.decode('utf-8').split(':')[1]
+                        if self.verbose:
+                            print(f"Starting UDP {test_type} test with {addr}")
+                        
+                        
+                        packet_times = {}
+                        
+                       
+                        server_socket.sendto(b'READY', addr)
+                        
+                    elif data.startswith(b'SEQ:'):
+                       
+                        parts = data.decode('utf-8').split(':')
+                        seq_num = int(parts[1])
+                        client_time = float(parts[2])
+                        
+                        
+                        packet_times[seq_num] = {
+                            'client_time': client_time,
+                            'server_time': time.time()
+                        }
+                        
+                        
+                        response = f"ACK:{seq_num}:{time.time()}"
+                        server_socket.sendto(response.encode('utf-8'), addr)
+                        
+                    elif data.startswith(b'END'):
+                        
+                        if self.verbose:
+                            print(f"UDP test complete, received {len(packet_times)} packets")
+                        
+                        
+                        results = f"RESULTS:{len(packet_times)}"
+                        server_socket.sendto(results.encode('utf-8'), addr)
+                    
+                except socket.timeout:
+                    continue
+        except KeyboardInterrupt:
+            print("UDP server stopping...")
+        finally:
+            server_socket.close()
+
+        
