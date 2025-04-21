@@ -139,12 +139,19 @@ class TCPHandler:
                     client_socket.sendall(test_data[:chunk_size])
                     remaining -= chunk_size
                 
-                response = client_socket.recv(1024).decode('utf-8')
-                if response.startswith('STATS:'):
-                    _, bytes_sent, duration = response.split(':')
-                    bytes_sent = int(bytes_sent)
-                    duration = float(duration)
-                else:
+                # Set a shorter timeout for receiving the response
+                client_socket.settimeout(2)
+                try:
+                    response = client_socket.recv(1024).decode('utf-8')
+                    if response.startswith('STATS:'):
+                        _, bytes_sent, duration = response.split(':')
+                        bytes_sent = int(bytes_sent)
+                        duration = float(duration)
+                    else:
+                        end_time = time.time()
+                        duration = end_time - start_time
+                        bytes_sent = self.data_size
+                except socket.timeout:
                     end_time = time.time()
                     duration = end_time - start_time
                     bytes_sent = self.data_size

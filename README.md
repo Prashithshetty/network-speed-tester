@@ -15,6 +15,20 @@ A versatile Python-based network speed testing tool that supports both TCP and U
   - Test duration
   - UDP-specific metrics (packet loss, RTT, jitter)
 - **Configurable Parameters**: Customize buffer size, data size, timeout, and more
+- **Modular Architecture**: Well-organized code structure for better maintainability
+
+## Project Structure
+
+The project is organized into several modules:
+
+- `main.py` - Entry point and command-line interface
+- `network_tester.py` - Main NetworkSpeedTester class
+- `tcp_handler.py` - TCP protocol implementation
+- `udp_handler.py` - UDP protocol implementation
+- `config.py` - Default settings and configurations
+- `utils.py` - Utility functions
+
+This modular structure makes the code more maintainable and easier to extend.
 
 ## Requirements
 
@@ -36,32 +50,32 @@ A versatile Python-based network speed testing tool that supports both TCP and U
 ### Basic Command Structure
 
 ```bash
-python network_speed_tester.py [-h] (-s | -c) [-H HOST] [-p PORT] [-b BUFFER]
-                              [-d DATA_SIZE] [-t TIMEOUT] [-P {tcp,udp}] [-v]
-                              [--download] [--upload] [--both]
+python main.py [-h] (-s | -c) [-H HOST] [-p PORT] [-b BUFFER]
+               [-d DATA_SIZE] [-t TIMEOUT] [-P {tcp,udp}] [-v]
+               [--download] [--upload] [--both]
 ```
 
 ### Running as Server
 
 ```bash
 # Start TCP server
-python network_speed_tester.py -s -P tcp
+python main.py -s -P tcp
 
 # Start UDP server
-python network_speed_tester.py -s -P udp
+python main.py -s -P udp
 ```
 
 ### Running as Client
 
 ```bash
 # Test both download and upload using TCP
-python network_speed_tester.py -c -H <server_ip> -P tcp --both
+python main.py -c -H <server_ip> -P tcp --both
 
 # Test only download using UDP
-python network_speed_tester.py -c -H <server_ip> -P udp --download
+python main.py -c -H <server_ip> -P udp --download
 
 # Test only upload with custom parameters
-python network_speed_tester.py -c -H <server_ip> -b 16384 -d 20971520 --upload
+python main.py -c -H <server_ip> -b 16384 -d 20971520 --upload
 ```
 
 ### Command Line Arguments
@@ -85,39 +99,49 @@ python network_speed_tester.py -c -H <server_ip> -b 16384 -d 20971520 --upload
 
 ### TCP Test
 ```
-Connecting to 192.168.1.100:5000 using TCP...
+Connecting to 127.0.0.1:5000 using TCP...
 
 Testing download speed...
-Download speed: 94.52 Mbps
+Download speed: 1973.94 Mbps
 Data received: 10.00 MB
-Duration: 0.85 seconds
+Duration: 0.04 seconds
 
 Testing upload speed...
-Upload speed: 89.76 Mbps
+Upload speed: 38.79 Mbps
 Data sent: 10.00 MB
-Duration: 0.89 seconds
+Duration: 2.06 seconds
 ```
 
 ### UDP Test
 ```
-Connecting to 192.168.1.100:5000 using UDP...
+Connecting to 127.0.0.1:5000 using UDP...
 
 Testing download speed...
-Download speed: 85.24 Mbps
-Data received: 10.00 MB
-Duration: 0.94 seconds
-Packet loss: 0.15%
-Average RTT: 2.45 ms
-Jitter: 0.32 ms
+Download speed: 33.27 Mbps
+Data received: 1000.00 KB
+Duration: 0.23 seconds
+Packet loss: 0.00%
+Average RTT: 117.30 ms
+Jitter: 66.24 ms
+
+Testing upload speed...
+Upload speed: 34.39 Mbps
+Data sent: 1000.00 KB
+Duration: 0.23 seconds
+Packet loss: 0.00%
+Average RTT: 114.34 ms
+Jitter: 64.23 ms
 ```
 
 ## Performance Considerations
 
 - **Buffer Size**: Larger buffer sizes may improve performance but consume more memory
-- **Data Size**: Larger data sizes provide more accurate results but take longer to complete
+- **Data Size**: 
+  - TCP: Uses 10MB of test data for accurate throughput measurement
+  - UDP: Uses 1MB (1000 packets) to balance speed and reliability
 - **Protocol Choice**:
   - TCP: Reliable, ordered delivery with built-in congestion control
-  - UDP: Faster but unreliable, better for real-time applications
+  - UDP: Faster but unreliable, better for real-time applications and latency testing
 
 ## Limitations
 
