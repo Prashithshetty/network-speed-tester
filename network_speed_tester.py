@@ -179,4 +179,211 @@ class NetworkSpeedTester:
         finally:
             server_socket.close()
 
+    def run_client_test(self, test_type: str) -> Tuple[float, float, int]:
         
+        if self.protocol == 'tcp':
+            return self._run_tcp_client_test(test_type)
+        else:
+            return self._run_udp_client_test(test_type)
+        
+    def _run_tcp_client_test(self, test_type: str) -> Tuple[float, float, int]:
+        """Run a TCP client speed test"""
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.settimeout(self.timeout)
+        
+        try:
+            client_socket.connect((self.host, self.port))
+            
+           
+            client_socket.sendall(test_type.encode('utf-8'))
+            
+            if test_type == 'upload':
+               
+                if self.verbose:
+                    print(f"Starting upload test to {self.host}:{self.port}...")
+                
+                
+                test_data = self._generate_test_data(self.buffer_size)
+                remaining = self.data_size
+                
+                start_time = time.time()
+                
+                while remaining > 0:
+                    chunk_size = min(remaining, self.buffer_size)
+                    client_socket.sendall(test_data[:chunk_size])
+                    remaining -= chunk_size
+                
+                
+                response = client_socket.recv(1024).decode('utf-8')
+                if response.startswith('STATS:'):
+                    _, bytes_sent, duration = response.split(':')
+                    bytes_sent = int(bytes_sent)
+                    duration = float(duration)
+                else:
+                 
+                    end_time = time.time()
+                    duration = end_time - start_time
+                    bytes_sent = self.data_size
+                
+            elif test_type == 'download':
+                
+                if self.verbose:
+                    print(f"Starting download test from {self.host}:{self.port}...")
+                
+                total_received = 0
+                start_time = time.time()
+                
+                while True:
+                    data = client_socket.recv(self.buffer_size)
+                    if not data or data.startswith(b'STATS:'):
+                        break
+                    total_received += len(data)
+                
+                
+                if data and data.startswith(b'STATS:'):
+                    try:
+                        _, bytes_received, server_duration = data.decode('utf-8').split(':')
+                        bytes_received = int(bytes_received)
+                        server_duration = float(server_duration)
+                        
+                        total_received = bytes_received
+                        duration = server_duration
+                    except:
+                       
+                        end_time = time.time()
+                        duration = end_time - start_time
+                else:
+                    
+                    end_time = time.time()
+                    duration = end_time - start_time
+                
+                bytes_sent = total_received
+            
+            
+            speed_mbps = (bytes_sent * 8) / (1024 * 1024 * duration)
+            
+            return speed_mbps, duration, bytes_sent
+            
+        except Exception as e:
+            print(f"Error during {test_type} test: {e}")
+            return 0.0, 0.0, 0
+        finally:
+            client_socket.close()
+
+    def _run_udp_client_test(self, test_type: str) -> Tuple[float, float, int, dict]:
+       
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client_socket.settimeout(self.timeout)
+        
+        try:
+            
+            start_msg = f"START:{test_type}"
+            client_socket.sendto(start_msg.encode('utf-8'), (self.host, self.port))
+            
+            
+            try:
+                data, _ = client_socket.recvfrom(1024)
+                if data != b'READY':
+                    print("Did not receive ready signal from server")
+                    return 0.0, 0.0, 0, {}
+            except socket.timeout:
+                print("Timed out waiting for server ready signal")
+                return 0.0, 0.0, 0, {}
+            
+            if self.verbose:
+                print(f"Starting UDP {test_type} test with {self.host}:{self.port}")
+            
+            
+            packet_size = 1024  
+            num_packets = min(DEFAULT_UDP_PACKETS, self.data_size // packet_size)
+            sent_times = {}
+            received_times = {}
+            
+            start_time = time.time()
+            
+            for i in range(num_packets):
+                
+                now = time.time()
+                packet = f"SEQ:{i}:{now}"
+                client_socket.sendto(packet.encode('utf-8'), (self.host, self.port))
+                sent_times[i] = now
+                
+                
+                if i % 50 == 0 and i > 0:
+                    time.sleep(0.01)
+            
+        
+            client_socket.settimeout(0.5)  
+            
+            for _ in range(num_packets):
+                try:
+                    data, _ = client_socket.recvfrom(1024)
+                    if data.startswith(b'ACK:'):
+                        parts = data.decode('utf-8').split(':')
+                        seq_num = int(parts[1])
+                        server_time = float(parts[2])
+                        receive_time = time.time()
+                        
+                        received_times[seq_num] = {
+                            'server_time': server_time,
+                            'receive_time': receive_time
+                        }
+                except socket.timeout:
+                    continue
+            
+            end_time = time.time()
+            duration = end_time - start_time
+            
+            
+            client_socket.sendto(b'END', (self.host, self.port))
+            
+            
+            packets_sent = num_packets
+            packets_received = len(received_times)
+            bytes_sent = packets_sent * packet_size
+            bytes_received = packets_received * packet_size
+            
+           
+            packet_loss = (1 - packets_received / packets_sent) * 100 if packets_sent > 0 else 0
+            
+           
+            rtts = []
+            for seq_num in received_times:
+                if seq_num in sent_times:
+                    rtt = received_times[seq_num]['receive_time'] - sent_times[seq_num]
+                    rtts.append(rtt)
+            
+            
+            jitter = statistics.stdev(rtts) * 1000 if len(rtts) > 1 else 0  # in ms
+            
+            
+            speed_mbps = (bytes_sent * 8) / (1024 * 1024 * duration) if duration > 0 else 0
+            
+            stats = {
+                'packet_loss': packet_loss,
+                'min_rtt': min(rtts) * 1000 if rtts else 0,  # ms
+                'max_rtt': max(rtts) * 1000 if rtts else 0,  # ms
+                'avg_rtt': statistics.mean(rtts) * 1000 if rtts else 0,  # ms
+                'jitter': jitter,  # ms
+                'packets_sent': packets_sent,
+                'packets_received': packets_received
+            }
+            
+            return speed_mbps, duration, bytes_sent, stats
+            
+        except Exception as e:
+            print(f"Error during UDP {test_type} test: {e}")
+            return 0.0, 0.0, 0, {}
+        finally:
+            client_socket.close()
+
+def format_size(size_bytes: int) -> str:
+    
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes/1024:.2f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes/(1024*1024):.2f} MB"
+    else:
+        return f"{size_bytes/(1024*1024*1024):.2f} GB"
