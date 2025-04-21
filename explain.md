@@ -7,6 +7,7 @@
 4. [Data Flow](#data-flow)
 5. [Error Handling](#error-handling)
 6. [Performance Optimization](#performance-optimization)
+7. [Testing and Debugging](#testing-and-debugging)
 
 ## Program Architecture
 
