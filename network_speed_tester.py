@@ -39,4 +39,28 @@ class NetworkSpeedTester:
         else:
             self._start_udp_server()
 
+    def _start_tcp_server(self) -> None:
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind((self.host, self.port))
+        server_socket.listen(1)
+        server_socket.settimeout(self.timeout)
+        
+        print(f"TCP Server started on {self.host}:{self.port}")
+        
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    client_socket, address = server_socket.accept()
+                    print(f"Connection from {address}")
+                    
+                    client_socket.settimeout(self.timeout)
+                    
+                    self._handle_tcp_client(client_socket)
+                except socket.timeout:
+                    continue
+        except KeyboardInterrupt:
+            print("Server shutting down...")
+        finally:
+            server_socket.close()
     
