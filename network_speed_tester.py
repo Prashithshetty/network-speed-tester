@@ -117,3 +117,4 @@ class NetworkSpeedTester:
             print(f"Error handling client: {e}")
         finally:
             client_socket.close()
+
