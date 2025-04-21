@@ -251,3 +251,72 @@ finally:
 - Proper cleanup
 - Resource release
 - Memory management
+
+## Testing and Debugging
+
+### Running Tests
+
+1. **Local Testing**
+   ```bash
+   # Terminal 1 - Start TCP server
+   python main.py -s -P tcp -v
+
+   # Terminal 2 - Run TCP client test
+   python main.py -c -H localhost -P tcp --both -v
+   ```
+   - Tests basic functionality
+   - Verifies both protocols
+   - Checks error handling
+
+2. **Network Testing**
+   ```bash
+   # Server machine
+   python main.py -s -P tcp -H 0.0.0.0
+
+   # Client machine
+   python main.py -c -H <server_ip> -P tcp --both
+   ```
+   - Tests real network conditions
+   - Verifies cross-machine communication
+   - Measures actual network performance
+
+### Debugging Tips
+
+1. **Verbose Mode**
+   ```bash
+   python main.py -s -P tcp -v
+   ```
+   - Enables detailed logging
+   - Shows connection events
+   - Displays transfer progress
+
+2. **Common Issues**
+   - Port already in use: Check for running instances
+   - Connection refused: Verify server is running
+   - Timeout: Check network connectivity
+   - Low speed: Verify buffer sizes and system resources
+
+3. **Performance Analysis**
+   - Monitor system resources
+   - Check network utilization
+   - Analyze timing patterns
+   - Review error logs
+
+### Troubleshooting Guide
+
+1. **Connection Issues**
+   - Verify server is running
+   - Check firewall settings
+   - Confirm port availability
+   - Test network connectivity
+
+2. **Performance Issues**
+   - Adjust buffer sizes
+   - Monitor system resources
+   - Check network congestion
+   - Verify test parameters
+
+3. **Protocol-Specific Issues**
+   - TCP: Connection handling, data ordering
+   - UDP: Packet loss, jitter calculation
+   - Both: Timeout settings, resource usage
